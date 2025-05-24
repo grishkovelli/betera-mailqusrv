@@ -1,10 +1,11 @@
 package entities
 
 type Email struct {
-	ID      string `json:"id"`
-	To      string `json:"to_address"`
-	Subject string `json:"subject"`
-	Body    string `json:"body"`
+	ID      int    `db:"id"`
+	To      string `db:"to_address"`
+	Subject string `db:"subject"`
+	Body    string `db:"body"`
+	Status  string `db:"status"`
 }
 
 type CreateEmail struct {

@@ -45,7 +45,6 @@ func (h *EmailHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := context.Background()
-	// TODO: use Server.PageSize from the config instead of hardcoded value
 	emails, err := h.emailService.GetByStatus(ctx, status, h.cfg.PageSize)
 	if err != nil {
 		renderError(w, http.StatusInternalServerError, err)

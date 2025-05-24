@@ -21,7 +21,7 @@ func validateParams(r *http.Request, s any) error {
 	return validateStruct(s)
 }
 
-func renderJSON(w http.ResponseWriter, code int, payload interface{}) {
+func renderJSON(w http.ResponseWriter, code int, payload any) {
 	resp, err := json.Marshal(payload)
 	if err != nil {
 		code = http.StatusUnprocessableEntity
