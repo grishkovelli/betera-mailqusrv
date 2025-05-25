@@ -1,5 +1,12 @@
 package entities
 
+const (
+	Failed     = "failed"
+	Pending    = "pending"
+	Processing = "processing"
+	Sent       = "sent"
+)
+
 type Email struct {
 	ID      int    `db:"id"`
 	To      string `db:"to_address"`

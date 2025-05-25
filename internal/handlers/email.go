@@ -6,15 +6,19 @@ import (
 
 	"mailqusrv/internal/config"
 	"mailqusrv/internal/entities"
-	srv "mailqusrv/internal/services"
 )
+
+type emailService interface {
+	Create(ctx context.Context, p entities.CreateEmail) error
+	GetByStatus(ctx context.Context, status string, limit int) ([]entities.Email, error)
+}
 
 type EmailHandler struct {
 	cfg          config.Server
-	emailService *srv.EmailService
+	emailService emailService
 }
 
-func NewEmailHandler(cfg config.Server, srv *srv.EmailService) *EmailHandler {
+func NewEmailHandler(cfg config.Server, srv emailService) *EmailHandler {
 	return &EmailHandler{cfg, srv}
 }
 
@@ -56,7 +60,7 @@ func (h *EmailHandler) List(w http.ResponseWriter, r *http.Request) {
 
 func validateEmailStatus(status string) bool {
 	switch status {
-	case "pending", "sent", "failed":
+	case entities.Pending, entities.Sent, entities.Failed:
 		return true
 	default:
 		return false

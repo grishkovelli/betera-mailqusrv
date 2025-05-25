@@ -13,6 +13,14 @@ func NewPgxPool(url string) (*pgxpool.Pool, error) {
 		return nil, fmt.Errorf("unable to parse database config: %w", err)
 	}
 
+	// TODO: use config
+	// config.ConnConfig.ConnectTimeout = 5 * time.Second
+	// config.MaxConns = 20
+	// config.MinConns = 5
+	// config.MaxConnLifetime = 30 * time.Minute
+	// config.MaxConnIdleTime = 5 * time.Minute
+	// config.HealthCheckPeriod = 1 * time.Minute
+
 	pool, err := pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create connection pool: %w", err)

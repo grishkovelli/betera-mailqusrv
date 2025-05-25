@@ -30,7 +30,6 @@ type Server struct {
 
 type Worker struct {
 	PoolSize           int `env:"POOL_SIZE"`
-	ProcessingTimeout  int `env:"PROCESSING_TIMEOUT"`
 	BatchSize          int `env:"BATCH_SIZE"`
 	StuckCheckInterval int `env:"STUCK_CHECK_INTERVAL"`
 }

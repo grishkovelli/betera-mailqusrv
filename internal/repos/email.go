@@ -65,7 +65,7 @@ func (r *EmailRepo) WithTransaction(ctx context.Context, fn func(ctx context.Con
 	return err
 }
 
-func (r *EmailRepo) GetPendingOrFailed(ctx context.Context, batchSize int) ([]entities.Email, error) {
+func (r *EmailRepo) LockPendingFailed(ctx context.Context, batchSize int) ([]entities.Email, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT id, to_address, subject, body, status
 		FROM emails
