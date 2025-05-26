@@ -25,7 +25,7 @@ func (d *DB) URL() string {
 
 type Server struct {
 	Port     string `env:"PORT"`
-	PageSize int    `ent:"PAGE_SIZE"`
+	PageSize int    `env:"PAGE_SIZE"`
 }
 
 type Worker struct {

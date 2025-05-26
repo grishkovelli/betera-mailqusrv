@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -27,8 +28,8 @@ func (m *MockEmailService) Create(ctx context.Context, p entities.CreateEmail) e
 	return args.Error(0)
 }
 
-func (m *MockEmailService) GetByStatus(ctx context.Context, status string, limit int) ([]entities.Email, error) {
-	args := m.Called(ctx, status, limit)
+func (m *MockEmailService) GetByStatus(ctx context.Context, status string, limit, cursor int) ([]entities.Email, error) {
+	args := m.Called(ctx, status, limit, cursor)
 	return args.Get(0).([]entities.Email), args.Error(1)
 }
 
@@ -118,6 +119,7 @@ func TestEmailHandler_List(t *testing.T) {
 	tests := []struct {
 		name           string
 		status         string
+		cursor         string
 		mockEmails     []entities.Email
 		mockError      error
 		expectedStatus int
@@ -125,6 +127,7 @@ func TestEmailHandler_List(t *testing.T) {
 		{
 			name:   "successful list pending emails",
 			status: entities.Pending,
+			cursor: "",
 			mockEmails: []entities.Email{
 				{ID: 1, To: "test1@example.com", Subject: "Test 1", Body: "Body 1", Status: entities.Pending},
 				{ID: 2, To: "test2@example.com", Subject: "Test 2", Body: "Body 2", Status: entities.Pending},
@@ -135,6 +138,7 @@ func TestEmailHandler_List(t *testing.T) {
 		{
 			name:           "invalid status",
 			status:         "invalid",
+			cursor:         "",
 			mockEmails:     nil,
 			mockError:      nil,
 			expectedStatus: http.StatusBadRequest,
@@ -142,9 +146,29 @@ func TestEmailHandler_List(t *testing.T) {
 		{
 			name:           "service error",
 			status:         entities.Pending,
+			cursor:         "",
 			mockEmails:     nil,
 			mockError:      errors.New("service error"),
 			expectedStatus: http.StatusInternalServerError,
+		},
+		{
+			name:   "valid cursor",
+			status: entities.Pending,
+			cursor: "10",
+			mockEmails: []entities.Email{
+				{ID: 11, To: "test11@example.com", Subject: "Test 11", Body: "Body 11", Status: entities.Pending},
+				{ID: 12, To: "test12@example.com", Subject: "Test 12", Body: "Body 12", Status: entities.Pending},
+			},
+			mockError:      nil,
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "invalid cursor format",
+			status:         entities.Pending,
+			cursor:         "invalid",
+			mockEmails:     nil,
+			mockError:      nil,
+			expectedStatus: http.StatusBadRequest,
 		},
 	}
 
@@ -153,13 +177,21 @@ func TestEmailHandler_List(t *testing.T) {
 			mockService := new(MockEmailService)
 			handler := NewEmailHandler(config.Server{PageSize: 10}, mockService)
 
-			req := httptest.NewRequest(http.MethodGet, "/emails?status="+tt.status, nil)
+			url := "/emails?status=" + tt.status
+			if tt.cursor != "" {
+				url += "&cursor=" + tt.cursor
+			}
+			req := httptest.NewRequest(http.MethodGet, url, nil)
 			w := httptest.NewRecorder()
 
 			if tt.expectedStatus == http.StatusOK {
-				mockService.On("GetByStatus", mock.Anything, tt.status, 10).Return(tt.mockEmails, nil)
+				cursor := 0
+				if tt.cursor != "" {
+					cursor, _ = strconv.Atoi(tt.cursor)
+				}
+				mockService.On("GetByStatus", mock.Anything, tt.status, 10, cursor).Return(tt.mockEmails, nil)
 			} else if tt.mockError != nil {
-				mockService.On("GetByStatus", mock.Anything, tt.status, 10).Return([]entities.Email{}, tt.mockError)
+				mockService.On("GetByStatus", mock.Anything, tt.status, 10, 0).Return([]entities.Email{}, tt.mockError)
 			}
 
 			handler.List(w, req)

@@ -29,13 +29,15 @@ func (r *EmailRepo) Create(ctx context.Context, email entities.CreateEmail) (ent
 	return pgx.CollectOneRow(rows, pgx.RowToStructByName[entities.Email])
 }
 
-// TODO: add pagination
-func (r *EmailRepo) GetByStatus(ctx context.Context, status string, limit int) ([]entities.Email, error) {
+func (r *EmailRepo) GetByStatus(ctx context.Context, status string, limit, cursor int) ([]entities.Email, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT id, to_address, subject, body, status
 		FROM emails
-		WHERE status = $1 LIMIT $2
-	`, status, limit)
+		WHERE id > $1
+			AND status = $2
+		ORDER BY id
+		LIMIT $3
+	`, cursor, status, limit)
 	if err != nil {
 		return nil, err
 	}

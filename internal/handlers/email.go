@@ -3,6 +3,8 @@ package handlers
 import (
 	"context"
 	"net/http"
+	"slices"
+	"strconv"
 
 	"mailqusrv/internal/config"
 	"mailqusrv/internal/entities"
@@ -10,7 +12,7 @@ import (
 
 type emailService interface {
 	Create(ctx context.Context, p entities.CreateEmail) error
-	GetByStatus(ctx context.Context, status string, limit int) ([]entities.Email, error)
+	GetByStatus(ctx context.Context, status string, limit, cursor int) ([]entities.Email, error)
 }
 
 type EmailHandler struct {
@@ -39,9 +41,19 @@ func (h *EmailHandler) Send(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
-// TODO: add pagination using ID range
 func (h *EmailHandler) List(w http.ResponseWriter, r *http.Request) {
+	var cursor int
 	status := r.URL.Query().Get("status")
+
+	if c := r.URL.Query().Get("cursor"); c != "" {
+		v, err := strconv.Atoi(c)
+		if err != nil {
+			renderError(w, http.StatusBadRequest, err)
+			return
+		}
+
+		cursor = v
+	}
 
 	if !validateEmailStatus(status) {
 		w.WriteHeader(http.StatusBadRequest)
@@ -49,7 +61,7 @@ func (h *EmailHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := context.Background()
-	emails, err := h.emailService.GetByStatus(ctx, status, h.cfg.PageSize)
+	emails, err := h.emailService.GetByStatus(ctx, status, h.cfg.PageSize, cursor)
 	if err != nil {
 		renderError(w, http.StatusInternalServerError, err)
 		return
@@ -59,10 +71,5 @@ func (h *EmailHandler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func validateEmailStatus(status string) bool {
-	switch status {
-	case entities.Pending, entities.Sent, entities.Failed:
-		return true
-	default:
-		return false
-	}
+	return slices.Contains([]string{entities.Pending, entities.Sent, entities.Failed}, status)
 }

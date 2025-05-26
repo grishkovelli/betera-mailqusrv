@@ -7,7 +7,7 @@ import (
 
 type emailRepo interface {
 	Create(ctx context.Context, email entities.CreateEmail) (entities.Email, error)
-	GetByStatus(ctx context.Context, status string, limit int) ([]entities.Email, error)
+	GetByStatus(ctx context.Context, status string, limit, cursor int) ([]entities.Email, error)
 }
 
 type EmailService struct {
@@ -23,6 +23,6 @@ func (s *EmailService) Create(ctx context.Context, p entities.CreateEmail) error
 	return err
 }
 
-func (s *EmailService) GetByStatus(ctx context.Context, status string, limit int) ([]entities.Email, error) {
-	return s.repo.GetByStatus(ctx, status, limit)
+func (s *EmailService) GetByStatus(ctx context.Context, status string, limit, cursor int) ([]entities.Email, error) {
+	return s.repo.GetByStatus(ctx, status, limit, cursor)
 }
