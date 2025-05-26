@@ -11,7 +11,7 @@ import (
 
 	"github.com/go-faker/faker/v4"
 
-	"mailqusrv/internal/entities"
+	"github.com/grishkovelli/betera-mailqusrv/internal/entities"
 )
 
 func main() {

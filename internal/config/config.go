@@ -16,6 +16,7 @@ type DB struct {
 	SSLMode  string `env:"SSLMODE"`
 }
 
+// URL returns a formatted PostgreSQL connection string using the DB configuration values.
 func (d *DB) URL() string {
 	return fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
@@ -24,14 +25,14 @@ func (d *DB) URL() string {
 }
 
 type Server struct {
-	Port     string `env:"PORT"`
-	PageSize int    `env:"PAGE_SIZE"`
+	Port     string `env:"PORT"`      // Server port number
+	PageSize int    `env:"PAGE_SIZE"` // Integer value for pagination size
 }
 
 type Worker struct {
-	PoolSize           int `env:"POOL_SIZE"`
-	BatchSize          int `env:"BATCH_SIZE"`
-	StuckCheckInterval int `env:"STUCK_CHECK_INTERVAL"`
+	PoolSize           int `env:"POOL_SIZE"`            // Integer value for worker pool size
+	BatchSize          int `env:"BATCH_SIZE"`           // Integer value for batch processing size
+	StuckCheckInterval int `env:"STUCK_CHECK_INTERVAL"` // Integer value for checking stuck jobs interval
 }
 
 type Config struct {
@@ -40,6 +41,8 @@ type Config struct {
 	Worker Worker `envPrefix:"WORKER_"`
 }
 
+// NewConfig creates and returns a new Config instance by loading environment variables
+// from .env file and parsing them into the Config struct. It panics if parsing fails.
 func NewConfig() Config {
 	if err := godotenv.Load(); err != nil {
 		fmt.Println(err)

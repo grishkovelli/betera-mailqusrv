@@ -11,14 +11,16 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"mailqusrv/internal/config"
-	"mailqusrv/internal/db"
-	"mailqusrv/internal/handlers"
-	"mailqusrv/internal/repos"
-	"mailqusrv/internal/services"
-	"mailqusrv/internal/worker"
+	"github.com/grishkovelli/betera-mailqusrv/internal/config"
+	"github.com/grishkovelli/betera-mailqusrv/internal/db"
+	"github.com/grishkovelli/betera-mailqusrv/internal/handlers"
+	"github.com/grishkovelli/betera-mailqusrv/internal/repos"
+	"github.com/grishkovelli/betera-mailqusrv/internal/services"
+	"github.com/grishkovelli/betera-mailqusrv/internal/worker"
 )
 
+// Run initializes and starts the server with database connection, worker pool,
+// and HTTP server. It handles graceful shutdown on system signals.
 func Run() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -47,6 +49,8 @@ func Run() {
 	log.Println("shutdown complete.")
 }
 
+// startServer creates and starts an HTTP server with the given configuration
+// and database connection. It returns the server instance.
 func startServer(cfg config.Config, dbConn *pgxpool.Pool) *http.Server {
 	s := &http.Server{
 		Addr:    fmt.Sprintf(":%v", cfg.Server.Port),
@@ -63,6 +67,8 @@ func startServer(cfg config.Config, dbConn *pgxpool.Pool) *http.Server {
 	return s
 }
 
+// routes sets up and returns the HTTP router with all application endpoints
+// configured with their respective handlers.
 func routes(cfg config.Config, db *pgxpool.Pool) *http.ServeMux {
 	mux := http.NewServeMux()
 
@@ -76,6 +82,8 @@ func routes(cfg config.Config, db *pgxpool.Pool) *http.ServeMux {
 	return mux
 }
 
+// newWorkerPool creates and returns a new worker pool instance with the given
+// configuration and database connection.
 func newWorkerPool(c config.Worker, d *pgxpool.Pool) *worker.Pool {
 	return worker.NewPool(c, repos.NewEmailRepo(d))
 }

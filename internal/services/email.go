@@ -2,7 +2,8 @@ package services
 
 import (
 	"context"
-	"mailqusrv/internal/entities"
+
+	"github.com/grishkovelli/betera-mailqusrv/internal/entities"
 )
 
 type emailRepo interface {

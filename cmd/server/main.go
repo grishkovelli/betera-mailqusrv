@@ -1,7 +1,7 @@
 package main
 
 import (
-	server "mailqusrv/internal"
+	server "github.com/grishkovelli/betera-mailqusrv/internal"
 )
 
 func main() {

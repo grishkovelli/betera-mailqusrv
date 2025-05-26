@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"mailqusrv/internal/config"
-	"mailqusrv/internal/entities"
+	"github.com/grishkovelli/betera-mailqusrv/internal/config"
+	"github.com/grishkovelli/betera-mailqusrv/internal/entities"
 )
 
 // mockEmailRepo implements the emailRepo interface for testing

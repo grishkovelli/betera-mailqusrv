@@ -2,7 +2,8 @@ package repos
 
 import (
 	"context"
-	"mailqusrv/internal/entities"
+
+	"github.com/grishkovelli/betera-mailqusrv/internal/entities"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"

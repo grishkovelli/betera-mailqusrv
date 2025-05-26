@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"mailqusrv/internal/config"
-	"mailqusrv/internal/entities"
+	"github.com/grishkovelli/betera-mailqusrv/internal/config"
+	"github.com/grishkovelli/betera-mailqusrv/internal/entities"
 )
 
 type MockEmailService struct {

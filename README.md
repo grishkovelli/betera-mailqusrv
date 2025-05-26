@@ -11,6 +11,7 @@ Features:
   - Log output
   - Unit tests for `handlers` and `worker`
   - Docker + docker-compose
+  - Graceful shutdown
 
 To get statistics:
 

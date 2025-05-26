@@ -1,4 +1,4 @@
-module mailqusrv
+module github.com/grishkovelli/betera-mailqusrv
 
 go 1.24.1
 

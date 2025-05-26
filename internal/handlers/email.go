@@ -6,8 +6,8 @@ import (
 	"slices"
 	"strconv"
 
-	"mailqusrv/internal/config"
-	"mailqusrv/internal/entities"
+	"github.com/grishkovelli/betera-mailqusrv/internal/config"
+	"github.com/grishkovelli/betera-mailqusrv/internal/entities"
 )
 
 // emailService defines the interface for email-related operations
