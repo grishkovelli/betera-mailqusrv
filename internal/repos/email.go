@@ -46,7 +46,6 @@ func (r *EmailRepo) GetByStatus(ctx context.Context, status string, limit, curso
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
 	return pgx.CollectRows(rows, pgx.RowToStructByName[entities.Email])
 }
