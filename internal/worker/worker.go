@@ -17,15 +17,19 @@ type emailRepo interface {
 	MarkStuckEmailsAsPending(ctx context.Context, seconds int) error
 }
 
+// Pool represents a worker pool that processes emails concurrently
 type Pool struct {
 	conf config.Worker
 	repo emailRepo
 }
 
+// NewPool creates a new worker pool with the provided configuration and repository
 func NewPool(conf config.Worker, repo emailRepo) *Pool {
 	return &Pool{conf, repo}
 }
 
+// Run starts the worker pool by launching multiple worker goroutines
+// and a goroutine to handle stuck emails
 func (p *Pool) Run(ctx context.Context) {
 	// check stuck emails
 	go p.processStuckEmails(ctx)
@@ -36,6 +40,8 @@ func (p *Pool) Run(ctx context.Context) {
 	}
 }
 
+// startWorker runs a single worker that processes emails in a loop
+// It fetches pending/failed emails, marks them as processing, and then processes them
 func (p *Pool) startWorker(ctx context.Context) {
 	for {
 		select {
@@ -82,7 +88,9 @@ func (p *Pool) startWorker(ctx context.Context) {
 	}
 }
 
-// processStuckEmails changes the status from 'processing' back to 'pending' for emails that were not processed due to worker crashes
+// processStuckEmails periodically checks for and handles emails that are stuck in processing state
+// It runs in a separate goroutine and marks emails as pending if they've been in processing state
+// for longer than the configured interval
 func (p *Pool) processStuckEmails(ctx context.Context) {
 	tkr := time.NewTicker(time.Second * time.Duration(p.conf.StuckCheckInterval))
 	defer tkr.Stop()
@@ -100,7 +108,8 @@ func (p *Pool) processStuckEmails(ctx context.Context) {
 	}
 }
 
-// processEmails simulates emails sending. Every second processing fails.
+// processEmails simulates the processing of emails by randomly marking them as sent or failed
+// Returns a map of status to email IDs that were processed
 func processEmails(emails []entities.Email) map[string][]int {
 	result := map[string][]int{
 		entities.Sent:   make([]int, 0, len(emails)/2+1),

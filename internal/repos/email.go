@@ -8,14 +8,17 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// EmailRepo handles all database operations related to emails
 type EmailRepo struct {
 	db *pgxpool.Pool
 }
 
+// NewEmailRepo creates a new instance of EmailRepo
 func NewEmailRepo(db *pgxpool.Pool) *EmailRepo {
 	return &EmailRepo{db: db}
 }
 
+// Create inserts a new email record into the database and returns the created email
 func (r *EmailRepo) Create(ctx context.Context, email entities.CreateEmail) (entities.Email, error) {
 	rows, err := r.db.Query(ctx, `
 		INSERT INTO emails (to_address, subject, body)
@@ -29,6 +32,7 @@ func (r *EmailRepo) Create(ctx context.Context, email entities.CreateEmail) (ent
 	return pgx.CollectOneRow(rows, pgx.RowToStructByName[entities.Email])
 }
 
+// GetByStatus retrieves emails with the specified status, using cursor-based pagination
 func (r *EmailRepo) GetByStatus(ctx context.Context, status string, limit, cursor int) ([]entities.Email, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT id, to_address, subject, body, status
@@ -46,6 +50,7 @@ func (r *EmailRepo) GetByStatus(ctx context.Context, status string, limit, curso
 	return pgx.CollectRows(rows, pgx.RowToStructByName[entities.Email])
 }
 
+// WithTransaction executes the provided function within a database transaction
 func (r *EmailRepo) WithTransaction(ctx context.Context, fn func(ctx context.Context) error) error {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
@@ -67,6 +72,7 @@ func (r *EmailRepo) WithTransaction(ctx context.Context, fn func(ctx context.Con
 	return err
 }
 
+// LockPendingFailed locks and retrieves a batch of pending or failed emails for processing
 func (r *EmailRepo) LockPendingFailed(ctx context.Context, batchSize int) ([]entities.Email, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT id, to_address, subject, body, status
@@ -83,6 +89,7 @@ func (r *EmailRepo) LockPendingFailed(ctx context.Context, batchSize int) ([]ent
 	return pgx.CollectRows(rows, pgx.RowToStructByName[entities.Email])
 }
 
+// BatchUpdateStatus updates the status of multiple emails by their IDs
 func (r *EmailRepo) BatchUpdateStatus(ctx context.Context, ids []int, status string) error {
 	if len(ids) == 0 {
 		return nil
@@ -97,6 +104,7 @@ func (r *EmailRepo) BatchUpdateStatus(ctx context.Context, ids []int, status str
 	return err
 }
 
+// MarkStuckEmailsAsPending resets the status of emails that have been in 'processing' state for too long
 func (r *EmailRepo) MarkStuckEmailsAsPending(ctx context.Context, seconds int) error {
 	_, err := r.db.Exec(ctx, `
 		UPDATE emails
