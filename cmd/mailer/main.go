@@ -32,7 +32,7 @@ func main() {
 				log.Fatalf("Failed serialization: %v", err)
 			}
 
-			resp, err := http.Post("http://localhost:3000/send-email", "application/json", bytes.NewBuffer(jsn))
+			resp, err := http.Post("http://app:3000/send-email", "application/json", bytes.NewBuffer(jsn))
 			if err != nil {
 				log.Fatalf("Failed request %v", err)
 			}

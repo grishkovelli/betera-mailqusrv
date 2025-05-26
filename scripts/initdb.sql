@@ -1,0 +1,3 @@
+CREATE USER quadmin WITH PASSWORD 'quadmin';
+CREATE DATABASE mailqu OWNER quadmin;
+GRANT ALL PRIVILEGES ON DATABASE mailqu TO quadmin;
