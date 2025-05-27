@@ -58,7 +58,7 @@ func newConf() config.Worker {
 	}
 }
 
-func TestProcessEmails(t *testing.T) {
+func TestSendEmails(t *testing.T) {
 	tests := []struct {
 		name   string
 		emails []entities.Email
@@ -88,17 +88,17 @@ func TestProcessEmails(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := processEmails(tt.emails)
+			got := sendEmails(tt.emails)
 			if len(got[entities.Sent]) != len(tt.want[entities.Sent]) {
 				t.Errorf(
-					"processEmails() sent count = %v, want %v",
+					"sendEmails() sent count = %v, want %v",
 					len(got[entities.Sent]),
 					len(tt.want[entities.Sent]),
 				)
 			}
 			if len(got[entities.Failed]) != len(tt.want[entities.Failed]) {
 				t.Errorf(
-					"processEmails() failed count = %v, want %v",
+					"sendEmails() failed count = %v, want %v",
 					len(got[entities.Failed]),
 					len(tt.want[entities.Failed]),
 				)

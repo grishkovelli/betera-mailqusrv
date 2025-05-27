@@ -49,19 +49,40 @@ func (p *Pool) startWorker(ctx context.Context) {
 			log.Println("worker shutting down")
 			return
 		default:
-			emails, err := p.selectAndMarkEmails(ctx)
-
-			if err == nil && len(emails) > 0 {
-				for status, ids := range processEmails(emails) {
-					if err = p.repo.BatchUpdateStatus(ctx, ids, status); err != nil {
-						log.Printf("failed to update status to %s: %v\n", status, err)
-					}
-				}
-			} else if err != nil {
-				log.Printf("transaction error: %v\n", err)
-			}
-
+			p.processEmails(ctx)
 			time.Sleep(time.Second)
+		}
+	}
+}
+
+// processEmails handles a single batch of email processing.
+// It first selects and marks emails as processing in a transaction,
+// then processes them by sending and updating their status.
+// If there's an error during the transaction or no emails are found,
+// it returns early without processing.
+func (p *Pool) processEmails(ctx context.Context) {
+	emails, err := p.selectAndMarkEmails(ctx)
+
+	if err != nil {
+		log.Printf("transaction error: %v\n", err)
+		return
+	}
+
+	if len(emails) == 0 {
+		return
+	}
+
+	p.sendAndUpdateEmails(ctx, emails)
+}
+
+// sendAndUpdateEmails processes a batch of emails by sending them
+// and updating their status in the database.
+// It groups emails by their final status (sent/failed) and performs
+// batch updates to minimize database operations.
+func (p *Pool) sendAndUpdateEmails(ctx context.Context, emails []entities.Email) {
+	for status, ids := range sendEmails(emails) {
+		if err := p.repo.BatchUpdateStatus(ctx, ids, status); err != nil {
+			log.Printf("failed to update status to %s: %v\n", status, err)
 		}
 	}
 }
@@ -73,16 +94,17 @@ func (p *Pool) selectAndMarkEmails(ctx context.Context) ([]entities.Email, error
 	var emails []entities.Email
 
 	err := p.repo.WithTransaction(ctx, func(ctx context.Context) error {
-		mails, err := p.repo.LockPendingFailed(ctx, p.conf.BatchSize)
+		var err error
+		emails, err = p.repo.LockPendingFailed(ctx, p.conf.BatchSize)
 		if err != nil {
 			return fmt.Errorf("failed to get pending/failed emails: %w", err)
 		}
-		if len(mails) == 0 {
+		if len(emails) == 0 {
 			return nil
 		}
 
-		ids := make([]int, len(mails))
-		for i, m := range mails {
+		ids := make([]int, len(emails))
+		for i, m := range emails {
 			ids[i] = m.ID
 		}
 
@@ -90,7 +112,6 @@ func (p *Pool) selectAndMarkEmails(ctx context.Context) ([]entities.Email, error
 			return fmt.Errorf("failed to update status to processing: %w", err)
 		}
 
-		emails = mails
 		return nil
 	})
 	return emails, err
@@ -116,9 +137,9 @@ func (p *Pool) processStuckEmails(ctx context.Context) {
 	}
 }
 
-// processEmails simulates the processing of emails by randomly marking them as sent or failed
+// sendEmails simulates the processing of emails by randomly marking them as sent or failed
 // Returns a map of status to email IDs that were processed.
-func processEmails(emails []entities.Email) map[string][]int {
+func sendEmails(emails []entities.Email) map[string][]int {
 	result := map[string][]int{
 		entities.Sent:   make([]int, 0, len(emails)/2+1),
 		entities.Failed: make([]int, 0, len(emails)/2+1),
