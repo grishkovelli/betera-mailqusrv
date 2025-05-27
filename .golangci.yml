@@ -26,6 +26,8 @@ formatters:
   # All settings can be found here https://github.com/golangci/golangci-lint/blob/HEAD/.golangci.reference.yml
   settings:
     goimports:
+      local-prefixes:
+        - github.com/grishkovelli/betera-mailqusrv
 
     golines:
       # Target maximum line length.
