@@ -1,3 +1,5 @@
+> Before launching Docker Compose, create a `.env` file using: `cp .env.example .env`
+
 For local deployment, simply run `docker-compose up`. After execution, the database will be created and migrations will be performed.
 Once both containers are running, to simulate sending messages, you can run the command `docker exec <APP_CONTAINER_NAME> /app/mailer` which
 will create `50` requests with different email addresses.

@@ -2,7 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
+	"log"
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
@@ -15,7 +16,7 @@ func validateStruct(s any) error {
 
 func validateParams(r *http.Request, s any) error {
 	if err := json.NewDecoder(r.Body).Decode(&s); err != nil {
-		return fmt.Errorf("invalid params")
+		return errors.New("invalid params")
 	}
 
 	return validateStruct(s)
@@ -30,7 +31,9 @@ func renderJSON(w http.ResponseWriter, code int, payload any) {
 
 	w.Header().Set("Content-Type", "serverlication/json")
 	w.WriteHeader(code)
-	w.Write(resp)
+	if _, err = w.Write(resp); err != nil {
+		log.Printf("failed to write response: %v", err)
+	}
 }
 
 func renderError(w http.ResponseWriter, code int, err error) {

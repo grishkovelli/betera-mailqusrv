@@ -12,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
 	"github.com/grishkovelli/betera-mailqusrv/internal/config"
 	"github.com/grishkovelli/betera-mailqusrv/internal/entities"
@@ -28,7 +29,11 @@ func (m *MockEmailService) Create(ctx context.Context, p entities.CreateEmail) e
 	return args.Error(0)
 }
 
-func (m *MockEmailService) GetByStatus(ctx context.Context, status string, limit, cursor int) ([]entities.Email, error) {
+func (m *MockEmailService) GetByStatus(
+	ctx context.Context,
+	status string,
+	limit, cursor int,
+) ([]entities.Email, error) {
 	args := m.Called(ctx, status, limit, cursor)
 	return args.Get(0).([]entities.Email), args.Error(1)
 }
@@ -200,7 +205,7 @@ func TestEmailHandler_List(t *testing.T) {
 			if tt.expectedStatus == http.StatusOK {
 				var response []entities.Email
 				err := json.NewDecoder(w.Body).Decode(&response)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, tt.mockEmails, response)
 			}
 			mockService.AssertExpectations(t)

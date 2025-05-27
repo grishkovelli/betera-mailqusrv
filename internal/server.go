@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -22,9 +23,6 @@ import (
 // Run initializes and starts the server with database connection, worker pool,
 // and HTTP server. It handles graceful shutdown on system signals.
 func Run() {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	cfg := config.NewConfig()
 
 	dbConn, err := db.NewPgxPool(cfg.DB.URL())
@@ -32,6 +30,9 @@ func Run() {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
 	defer dbConn.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	wp := newWorkerPool(cfg.Worker, dbConn)
 	go wp.Run(ctx)
@@ -42,8 +43,8 @@ func Run() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatalf("server shutdown error: %v", err)
+	if err = srv.Shutdown(ctx); err != nil {
+		log.Printf("server shutdown error: %v\n", err)
 	}
 
 	log.Println("shutdown complete.")
@@ -53,12 +54,13 @@ func Run() {
 // and database connection. It returns the server instance.
 func startServer(cfg config.Config, dbConn *pgxpool.Pool) *http.Server {
 	s := &http.Server{
-		Addr:    fmt.Sprintf(":%v", cfg.Server.Port),
-		Handler: routes(cfg, dbConn),
+		Addr:              fmt.Sprintf(":%v", cfg.Server.Port),
+		Handler:           routes(cfg, dbConn),
+		ReadHeaderTimeout: time.Duration(cfg.Server.ReadHeaderTimeout) * time.Second,
 	}
 
 	go func() {
-		fmt.Printf("Server is running on port %v\n", cfg.Server.Port)
+		log.Printf("Server is running on port %v\n", cfg.Server.Port)
 		if err := s.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("failed to start server: %v", err)
 		}

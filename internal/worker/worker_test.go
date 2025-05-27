@@ -2,7 +2,7 @@ package worker
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"testing"
 	"time"
 
@@ -10,7 +10,7 @@ import (
 	"github.com/grishkovelli/betera-mailqusrv/internal/entities"
 )
 
-// mockEmailRepo implements the emailRepo interface for testing
+// mockEmailRepo implements the emailRepo interface for testing.
 type mockEmailRepo struct {
 	emails            []entities.Email
 	updateStatusCalls int
@@ -24,12 +24,12 @@ type mockEmailRepo struct {
 	markStuckErr    error
 }
 
-func (m *mockEmailRepo) BatchUpdateStatus(ctx context.Context, ids []int, status string) error {
+func (m *mockEmailRepo) BatchUpdateStatus(_ context.Context, _ []int, _ string) error {
 	m.updateStatusCalls++
 	return m.updateStatusErr
 }
 
-func (m *mockEmailRepo) LockPendingFailed(ctx context.Context, batchSize int) ([]entities.Email, error) {
+func (m *mockEmailRepo) LockPendingFailed(_ context.Context, _ int) ([]entities.Email, error) {
 	m.lockEmailsCalls++
 	if m.lockEmailsErr != nil {
 		return nil, m.lockEmailsErr
@@ -45,7 +45,7 @@ func (m *mockEmailRepo) WithTransaction(ctx context.Context, fn func(ctx context
 	return fn(ctx)
 }
 
-func (m *mockEmailRepo) MarkStuckEmailsAsPending(ctx context.Context, seconds int) error {
+func (m *mockEmailRepo) MarkStuckEmailsAsPending(_ context.Context, _ int) error {
 	m.markStuckCalls++
 	return m.markStuckErr
 }
@@ -90,17 +90,25 @@ func TestProcessEmails(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := processEmails(tt.emails)
 			if len(got[entities.Sent]) != len(tt.want[entities.Sent]) {
-				t.Errorf("processEmails() sent count = %v, want %v", len(got[entities.Sent]), len(tt.want[entities.Sent]))
+				t.Errorf(
+					"processEmails() sent count = %v, want %v",
+					len(got[entities.Sent]),
+					len(tt.want[entities.Sent]),
+				)
 			}
 			if len(got[entities.Failed]) != len(tt.want[entities.Failed]) {
-				t.Errorf("processEmails() failed count = %v, want %v", len(got[entities.Failed]), len(tt.want[entities.Failed]))
+				t.Errorf(
+					"processEmails() failed count = %v, want %v",
+					len(got[entities.Failed]),
+					len(tt.want[entities.Failed]),
+				)
 			}
 		})
 	}
 }
 
 func TestPool_StartWorker(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
 	defer cancel()
 
 	mockRepo := &mockEmailRepo{
@@ -127,7 +135,7 @@ func TestPool_StartWorker(t *testing.T) {
 }
 
 func TestPool_ProcessStuckEmails(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 1100*time.Millisecond)
 	defer cancel()
 
 	mockRepo := &mockEmailRepo{
@@ -147,11 +155,11 @@ func TestPool_ProcessStuckEmails(t *testing.T) {
 }
 
 func TestPool_TransactionErrorHandling(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
 	defer cancel()
 
 	mockRepo := &mockEmailRepo{
-		transactionErr: fmt.Errorf("test error"),
+		transactionErr: errors.New("test error"),
 	}
 
 	pool := NewPool(newConf(), mockRepo)

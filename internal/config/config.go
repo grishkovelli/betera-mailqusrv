@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/caarlos0/env/v11"
 	"github.com/joho/godotenv"
@@ -25,8 +26,9 @@ func (d *DB) URL() string {
 }
 
 type Server struct {
-	Port     string `env:"PORT"`      // Server port number
-	PageSize int    `env:"PAGE_SIZE"` // Integer value for pagination size
+	Port              string `env:"PORT"`                // Server port number
+	PageSize          int    `env:"PAGE_SIZE"`           // Integer value for pagination size
+	ReadHeaderTimeout int    `env:"READ_HEADER_TIMEOUT"` // Used to limit execution time of the http.Handler
 }
 
 type Worker struct {
@@ -45,7 +47,7 @@ type Config struct {
 // from .env file and parsing them into the Config struct. It panics if parsing fails.
 func NewConfig() Config {
 	if err := godotenv.Load(); err != nil {
-		fmt.Println(err)
+		log.Println(".env was not found")
 	}
 
 	cfg := Config{}
