@@ -1,4 +1,8 @@
-> Before launching Docker Compose, create a `.env` file using: `cp .env.example .env`
+> Before launching Docker Compose, create a `.env` file using: `cp .env.example .env` .
+
+>
+> Note: FYI, `scripts/initdb.sql` and `entrypoint.sh` contain hardcoded database credentials.
+>
 
 For local deployment, simply run `docker-compose up`. After execution, the database will be created and migrations will be performed.
 Once both containers are running, to simulate sending messages, you can run the command `docker exec <APP_CONTAINER_NAME> /app/mailer` which
@@ -63,6 +67,9 @@ SERVER_PORT=3000
 
 # Default number of items returned per page for paginated API responses.
 SERVER_PAGE_SIZE=50
+
+# Used to limit execution time of the http.Handler.
+SERVER_READ_HEADER_TIMEOUT=5
 
 # Number of concurrent worker processes/threads that will process background jobs.
 WORKER_POOL_SIZE=2
