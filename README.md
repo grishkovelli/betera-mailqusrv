@@ -1,14 +1,17 @@
-> Before launching Docker Compose, create a `.env` file using: `cp .env.example .env` .
+> To load environment variables you can use `.env` (use `cp .env.example .env`) or environment variables in `docker-compose.yml`.
 
 >
-> Note: FYI, `scripts/initdb.sql` and `entrypoint.sh` contain hardcoded database credentials.
+> Note: `scripts/initdb.sql` contains hardcoded database credentials.
 >
 
 For local deployment, simply run `docker-compose up`. After execution, the database will be created and migrations will be performed.
 Once both containers are running, to simulate sending messages, you can run the command `docker exec <APP_CONTAINER_NAME> /app/mailer` which
 will create `50` requests with different email addresses.
 
-Features:
+Example: `docker exec betera-mailqusrv-app-1 /app/mailer`
+
+### Features
+
   - Statistics of processed messages GET /emails?status = `pending` | `sent` | `failed`
   - PK-based pagination to reduce load GET /emails
   - Additional goroutine that checks for stuck messages (if worker crashed) in `processing` status and changes their status to `pending` for subsequent processing
@@ -19,6 +22,8 @@ Features:
   - Unit tests for `handlers` and `worker`
   - Docker + docker-compose
   - Graceful shutdown
+
+### Testing
 
 To get statistics:
 
@@ -39,9 +44,9 @@ For manual request sending:
     http://localhost:3000/send-email
   ```
 
-For testing run `go test ./internal/... -v`
+For unit testing run `go test ./internal/... -v`
 
-ENV variables:
+### Environment variables:
 
 ```
 # Database server hostname or IP address.
@@ -81,7 +86,49 @@ WORKER_BATCH_SIZE=10
 WORKER_STUCK_CHECK_INTERVAL=5
 ```
 
+### Project structure
 
-Demonstration of `docker-compose`, `mailer`, and `httpie`.
+```
+.
+├── Dockerfile
+├── README.md
+├── cmd
+│   ├── mailer
+│   │   └── main.go
+│   └── server
+│       └── main.go
+├── config
+│   └── config.go
+├── docker-compose.yml
+├── entrypoint.sh
+├── go.mod
+├── go.sum
+├── internal
+│   ├── entities
+│   │   └── email.go
+│   ├── handlers
+│   │   ├── base.go
+│   │   ├── email.go
+│   │   └── email_test.go
+│   ├── repos
+│   │   └── email.go
+│   ├── server.go
+│   ├── services
+│   │   └── email.go
+│   └── worker
+│       ├── worker.go
+│       └── worker_test.go
+├── migrations
+│   ├── 000001_create_emails.down.sql
+│   └── 000001_create_emails.up.sql
+├── pkg
+│   └── postgres
+│       └── postgres.go
+├── screenshot.png
+└── scripts
+    └── initdb.sql
+```
 
-<img src="screenshot.png" width="720">
+### Demo
+
+<img src="screenshot.png" width="800">

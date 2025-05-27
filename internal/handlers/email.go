@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/grishkovelli/betera-mailqusrv/internal/config"
+	"github.com/grishkovelli/betera-mailqusrv/config"
 	"github.com/grishkovelli/betera-mailqusrv/internal/entities"
 )
 

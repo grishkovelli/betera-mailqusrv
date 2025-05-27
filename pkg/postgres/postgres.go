@@ -1,25 +1,20 @@
-package db
+package postgres
 
 import (
 	"context"
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/grishkovelli/betera-mailqusrv/config"
 )
 
-func NewPgxPool(url string) (*pgxpool.Pool, error) {
-	config, err := pgxpool.ParseConfig(url)
+// NewPgxPool creates and returns a new posgtres Pool.
+func NewPgxPool(cfg config.DB) (*pgxpool.Pool, error) {
+	config, err := pgxpool.ParseConfig(cfg.URL())
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse database config: %w", err)
 	}
-
-	// TODO: use config
-	// config.ConnConfig.ConnectTimeout = 5 * time.Second
-	// config.MaxConns = 20
-	// config.MinConns = 5
-	// config.MaxConnLifetime = 30 * time.Minute
-	// config.MaxConnIdleTime = 5 * time.Minute
-	// config.HealthCheckPeriod = 1 * time.Minute
 
 	pool, err := pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {

@@ -2,8 +2,9 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,71 +13,59 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/grishkovelli/betera-mailqusrv/internal/config"
-	"github.com/grishkovelli/betera-mailqusrv/internal/db"
+	"github.com/grishkovelli/betera-mailqusrv/config"
 	"github.com/grishkovelli/betera-mailqusrv/internal/handlers"
 	"github.com/grishkovelli/betera-mailqusrv/internal/repos"
 	"github.com/grishkovelli/betera-mailqusrv/internal/services"
 	"github.com/grishkovelli/betera-mailqusrv/internal/worker"
+	"github.com/grishkovelli/betera-mailqusrv/pkg/postgres"
 )
 
-// Run initializes and starts the server with database connection, worker pool,
-// and HTTP server. It handles graceful shutdown on system signals.
+// Run initializes and starts the server with database connection, worker pool, and HTTP server. It handles graceful shutdown on system signals.
 func Run() {
 	cfg := config.NewConfig()
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
-	dbConn, err := db.NewPgxPool(cfg.DB.URL())
+	dbConn, err := postgres.NewPgxPool(cfg.DB)
 	if err != nil {
-		log.Fatalf("failed to connect to database: %v", err)
+		logger.Error("failed to connect to database", "error", err)
+		os.Exit(1)
 	}
 	defer dbConn.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	wp := newWorkerPool(cfg.Worker, dbConn)
+	wp := newWorkerPool(cfg.Worker, dbConn, logger)
 	go wp.Run(ctx)
 
-	srv := startServer(cfg, dbConn)
+	s := newServer(cfg.Server, dbConn)
+	go func() {
+		logger.Info("server is running", "port", cfg.Server.Port)
+		if err = s.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Error("failed to start server", "error", err)
+			os.Exit(1)
+		}
+	}()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	if err = srv.Shutdown(ctx); err != nil {
-		log.Printf("server shutdown error: %v\n", err)
+	if err = s.Shutdown(ctx); err != nil {
+		logger.Error("server shutdown", "error", err)
 	}
 
-	log.Println("shutdown complete.")
+	logger.Info("server shutdown complete.")
 }
 
-// startServer creates and starts an HTTP server with the given configuration
-// and database connection. It returns the server instance.
-func startServer(cfg config.Config, dbConn *pgxpool.Pool) *http.Server {
-	s := &http.Server{
-		Addr:              fmt.Sprintf(":%v", cfg.Server.Port),
-		Handler:           routes(cfg, dbConn),
-		ReadHeaderTimeout: time.Duration(cfg.Server.ReadHeaderTimeout) * time.Second,
-	}
-
-	go func() {
-		log.Printf("Server is running on port %v\n", cfg.Server.Port)
-		if err := s.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("failed to start server: %v", err)
-		}
-	}()
-
-	return s
-}
-
-// routes sets up and returns the HTTP router with all application endpoints
-// configured with their respective handlers.
-func routes(cfg config.Config, db *pgxpool.Pool) *http.ServeMux {
+// newMux sets up and returns the HTTP router with all application endpoints configured.
+func newMux(cfg config.Server, dbConn *pgxpool.Pool) *http.ServeMux {
 	mux := http.NewServeMux()
 
-	emailRepo := repos.NewEmailRepo(db)
+	emailRepo := repos.NewEmailRepo(dbConn)
 	emailSrv := services.NewEmailService(emailRepo)
-	emailHdr := handlers.NewEmailHandler(cfg.Server, emailSrv)
+	emailHdr := handlers.NewEmailHandler(cfg, emailSrv)
 
 	mux.HandleFunc("GET /emails", emailHdr.List)
 	mux.HandleFunc("POST /send-email", emailHdr.Send)
@@ -84,8 +73,16 @@ func routes(cfg config.Config, db *pgxpool.Pool) *http.ServeMux {
 	return mux
 }
 
-// newWorkerPool creates and returns a new worker pool instance with the given
-// configuration and database connection.
-func newWorkerPool(c config.Worker, d *pgxpool.Pool) *worker.Pool {
-	return worker.NewPool(c, repos.NewEmailRepo(d))
+// newWorkerPool creates and returns a new worker pool instance with the given configuration.
+func newWorkerPool(c config.Worker, d *pgxpool.Pool, l *slog.Logger) *worker.Pool {
+	return worker.NewPool(c, repos.NewEmailRepo(d), l)
+}
+
+// newServer creates and returns a new HTTP server with the given configuration.
+func newServer(cfg config.Server, dbConn *pgxpool.Pool) *http.Server {
+	return &http.Server{
+		Addr:              fmt.Sprintf(":%v", cfg.Port),
+		Handler:           newMux(cfg, dbConn),
+		ReadHeaderTimeout: time.Duration(cfg.ReadHeaderTimeout) * time.Second,
+	}
 }

@@ -3,10 +3,10 @@ package worker
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
-	"github.com/grishkovelli/betera-mailqusrv/internal/config"
+	"github.com/grishkovelli/betera-mailqusrv/config"
 	"github.com/grishkovelli/betera-mailqusrv/internal/entities"
 )
 
@@ -19,17 +19,17 @@ type emailRepo interface {
 
 // Pool represents a worker pool that processes emails concurrently.
 type Pool struct {
-	conf config.Worker
-	repo emailRepo
+	conf   config.Worker
+	repo   emailRepo
+	logger *slog.Logger
 }
 
 // NewPool creates a new worker pool with the provided configuration and repository.
-func NewPool(conf config.Worker, repo emailRepo) *Pool {
-	return &Pool{conf, repo}
+func NewPool(conf config.Worker, repo emailRepo, logger *slog.Logger) *Pool {
+	return &Pool{conf, repo, logger}
 }
 
-// Run starts the worker pool by launching multiple worker goroutines
-// and a goroutine to handle stuck emails.
+// Run starts the worker pool by launching multiple worker goroutines and a goroutine to handle stuck emails.
 func (p *Pool) Run(ctx context.Context) {
 	// check stuck emails
 	go p.processStuckEmails(ctx)
@@ -40,13 +40,12 @@ func (p *Pool) Run(ctx context.Context) {
 	}
 }
 
-// startWorker runs a single worker that processes emails in a loop
-// It fetches pending/failed emails, marks them as processing, and then processes them.
+// startWorker runs a single worker that processes emails in a loop until the context is cancelled.
 func (p *Pool) startWorker(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			log.Println("worker shutting down")
+			p.logger.InfoContext(ctx, "worker shutting down")
 			return
 		default:
 			p.processEmails(ctx)
@@ -55,16 +54,12 @@ func (p *Pool) startWorker(ctx context.Context) {
 	}
 }
 
-// processEmails handles a single batch of email processing.
-// It first selects and marks emails as processing in a transaction,
-// then processes them by sending and updating their status.
-// If there's an error during the transaction or no emails are found,
-// it returns early without processing.
+// processEmails handles a single batch of email processing by selecting, marking, and processing emails.
 func (p *Pool) processEmails(ctx context.Context) {
 	emails, err := p.selectAndMarkEmails(ctx)
 
 	if err != nil {
-		log.Printf("transaction error: %v\n", err)
+		p.logger.ErrorContext(ctx, "transaction failed", "error", err)
 		return
 	}
 
@@ -75,21 +70,16 @@ func (p *Pool) processEmails(ctx context.Context) {
 	p.sendAndUpdateEmails(ctx, emails)
 }
 
-// sendAndUpdateEmails processes a batch of emails by sending them
-// and updating their status in the database.
-// It groups emails by their final status (sent/failed) and performs
-// batch updates to minimize database operations.
+// sendAndUpdateEmails processes a batch of emails by sending them and updating their status in the database.
 func (p *Pool) sendAndUpdateEmails(ctx context.Context, emails []entities.Email) {
-	for status, ids := range sendEmails(emails) {
+	for status, ids := range sendEmails(emails, p.logger) {
 		if err := p.repo.BatchUpdateStatus(ctx, ids, status); err != nil {
-			log.Printf("failed to update status to %s: %v\n", status, err)
+			p.logger.ErrorContext(ctx, "failed to update status", "error", err)
 		}
 	}
 }
 
-// selectAndMarkEmails retrieves a batch of pending or failed emails from the database,
-// marks them as "processing" within a single transaction, and returns them.
-// If no emails are found, it returns an empty slice with no error.
+// selectAndMarkEmails retrieves pending/failed emails and marks them as processing within a transaction.
 func (p *Pool) selectAndMarkEmails(ctx context.Context) ([]entities.Email, error) {
 	var emails []entities.Email
 
@@ -117,9 +107,7 @@ func (p *Pool) selectAndMarkEmails(ctx context.Context) ([]entities.Email, error
 	return emails, err
 }
 
-// processStuckEmails periodically checks for and handles emails that are stuck in processing state
-// It runs in a separate goroutine and marks emails as pending if they've been in processing state
-// for longer than the configured interval.
+// processStuckEmails periodically checks for and handles emails that are stuck in processing state.
 func (p *Pool) processStuckEmails(ctx context.Context) {
 	tkr := time.NewTicker(time.Second * time.Duration(p.conf.StuckCheckInterval))
 	defer tkr.Stop()
@@ -127,19 +115,18 @@ func (p *Pool) processStuckEmails(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			log.Println("stuck emails processing shutting down")
+			p.logger.InfoContext(ctx, "stuck emails processing shutting down")
 			return
 		case <-tkr.C:
 			if err := p.repo.MarkStuckEmailsAsPending(ctx, p.conf.StuckCheckInterval); err != nil {
-				log.Printf("failed to update stuck emails: %v\n", err)
+				p.logger.InfoContext(ctx, "failed to update stuck emails", "error", err)
 			}
 		}
 	}
 }
 
-// sendEmails simulates the processing of emails by randomly marking them as sent or failed
-// Returns a map of status to email IDs that were processed.
-func sendEmails(emails []entities.Email) map[string][]int {
+// sendEmails simulates email processing by randomly marking emails as sent or failed.
+func sendEmails(emails []entities.Email, logger *slog.Logger) map[string][]int {
 	result := map[string][]int{
 		entities.Sent:   make([]int, 0, len(emails)/2+1),
 		entities.Failed: make([]int, 0, len(emails)/2+1),
@@ -152,7 +139,12 @@ func sendEmails(emails []entities.Email) map[string][]int {
 		}
 
 		result[status] = append(result[status], email.ID)
-		log.Printf("%d %s %s -> %s\n", email.ID, email.To, email.Status, status)
+
+		logger.Info("email status change",
+			"id", email.ID,
+			"addr", email.To,
+			"from", email.Status,
+			"to", status)
 	}
 
 	return result

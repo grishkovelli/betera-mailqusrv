@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/grishkovelli/betera-mailqusrv/internal/config"
+	"github.com/grishkovelli/betera-mailqusrv/config"
 	"github.com/grishkovelli/betera-mailqusrv/internal/entities"
 )
 

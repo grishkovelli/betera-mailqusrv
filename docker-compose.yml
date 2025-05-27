@@ -8,7 +8,20 @@ services:
     depends_on:
       - db
     volumes:
-      - ./internal/db/migrations:/migrations
+      - ./migrations:/migrations
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=mailqu
+      - DB_USER=quadmin
+      - DB_PASSWORD=quadmin
+      - DB_SSLMODE=disable
+      - SERVER_PORT=3000
+      - SERVER_PAGE_SIZE=50
+      - SERVER_READ_HEADER_TIMEOUT=5
+      - WORKER_POOL_SIZE=2
+      - WORKER_BATCH_SIZE=10
+      - WORKER_STUCK_CHECK_INTERVAL=5
 
   db:
     image: postgres:16-alpine

@@ -1,12 +1,14 @@
 package worker
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log/slog"
 	"testing"
 	"time"
 
-	"github.com/grishkovelli/betera-mailqusrv/internal/config"
+	"github.com/grishkovelli/betera-mailqusrv/config"
 	"github.com/grishkovelli/betera-mailqusrv/internal/entities"
 )
 
@@ -58,6 +60,12 @@ func newConf() config.Worker {
 	}
 }
 
+func newLogger() (*bytes.Buffer, *slog.Logger) {
+	buf := &bytes.Buffer{}
+	logger := slog.New(slog.NewTextHandler(buf, nil))
+	return buf, logger
+}
+
 func TestSendEmails(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -86,9 +94,10 @@ func TestSendEmails(t *testing.T) {
 		},
 	}
 
+	_, logger := newLogger()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := sendEmails(tt.emails)
+			got := sendEmails(tt.emails, logger)
 			if len(got[entities.Sent]) != len(tt.want[entities.Sent]) {
 				t.Errorf(
 					"sendEmails() sent count = %v, want %v",
@@ -118,7 +127,8 @@ func TestPool_StartWorker(t *testing.T) {
 		},
 	}
 
-	pool := NewPool(newConf(), mockRepo)
+	_, logger := newLogger()
+	pool := NewPool(newConf(), mockRepo, logger)
 	pool.Run(ctx)
 
 	<-ctx.Done()
@@ -144,7 +154,8 @@ func TestPool_ProcessStuckEmails(t *testing.T) {
 			{ID: 2, To: "test2@example.com", Status: entities.Processing},
 		},
 	}
-	pool := NewPool(newConf(), mockRepo)
+	_, logger := newLogger()
+	pool := NewPool(newConf(), mockRepo, logger)
 	pool.Run(ctx)
 
 	<-ctx.Done()
@@ -162,7 +173,8 @@ func TestPool_TransactionErrorHandling(t *testing.T) {
 		transactionErr: errors.New("test error"),
 	}
 
-	pool := NewPool(newConf(), mockRepo)
+	_, logger := newLogger()
+	pool := NewPool(newConf(), mockRepo, logger)
 	pool.Run(ctx)
 
 	<-ctx.Done()
