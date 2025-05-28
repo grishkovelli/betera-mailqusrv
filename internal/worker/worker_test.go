@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -148,13 +149,20 @@ func TestPool_ProcessStuckEmails(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 1100*time.Millisecond)
 	defer cancel()
 
+	wantLogs := []string{
+		`level=INFO msg="email status change" id=1 addr=test1@example.com from=processing to=sent`,
+		`level=INFO msg="email status change" id=2 addr=test2@example.com from=processing to=failed`,
+		`level=INFO msg="email status change" id=1 addr=test1@example.com from=processing to=sent`,
+		`level=INFO msg="email status change" id=2 addr=test2@example.com from=processing to=failed`,
+	}
 	mockRepo := &mockEmailRepo{
 		emails: []entities.Email{
 			{ID: 1, To: "test1@example.com", Status: entities.Processing},
 			{ID: 2, To: "test2@example.com", Status: entities.Processing},
 		},
 	}
-	_, logger := newLogger()
+
+	buf, logger := newLogger()
 	pool := NewPool(newConf(), mockRepo, logger)
 	pool.Run(ctx)
 
@@ -163,17 +171,26 @@ func TestPool_ProcessStuckEmails(t *testing.T) {
 	if mockRepo.markStuckCalls == 0 {
 		t.Error("MarkStuckEmailsAsPending was not called")
 	}
+
+	s := buf.String()
+	for _, l := range wantLogs {
+		if !strings.Contains(s, l) {
+			t.Errorf("Unexpected log output %s", s)
+		}
+	}
 }
 
 func TestPool_TransactionErrorHandling(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
 	defer cancel()
 
+	const wantLog = `level=ERROR msg="transaction failed" error="invalid input syntax"`
+
 	mockRepo := &mockEmailRepo{
-		transactionErr: errors.New("test error"),
+		transactionErr: errors.New("invalid input syntax"),
 	}
 
-	_, logger := newLogger()
+	buf, logger := newLogger()
 	pool := NewPool(newConf(), mockRepo, logger)
 	pool.Run(ctx)
 
@@ -181,5 +198,9 @@ func TestPool_TransactionErrorHandling(t *testing.T) {
 
 	if mockRepo.updateStatusCalls > 0 {
 		t.Error("BatchUpdateStatus was called")
+	}
+
+	if s := buf.String(); !strings.Contains(s, wantLog) {
+		t.Errorf("Unexpected log output %s", s)
 	}
 }
