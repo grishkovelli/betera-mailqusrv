@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"slices"
 	"strconv"
@@ -61,7 +62,7 @@ func (h *EmailHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !validateEmailStatus(status) {
-		w.WriteHeader(http.StatusBadRequest)
+		renderError(w, http.StatusBadRequest, fmt.Errorf("invalid status: %s", status))
 		return
 	}
 

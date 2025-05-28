@@ -39,7 +39,7 @@ func Run() {
 	wp := newWorkerPool(cfg.Worker, dbConn, logger)
 	go wp.Run(ctx)
 
-	s := newServer(cfg.Server, dbConn)
+	s := newServer(cfg.Server, dbConn, logger)
 	go func() {
 		logger.Info("server is running", "port", cfg.Server.Port)
 		if err = s.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -79,10 +79,10 @@ func newWorkerPool(c config.Worker, d *pgxpool.Pool, l *slog.Logger) *worker.Poo
 }
 
 // newServer creates and returns a new HTTP server with the given configuration.
-func newServer(cfg config.Server, dbConn *pgxpool.Pool) *http.Server {
+func newServer(cfg config.Server, dbConn *pgxpool.Pool, logger *slog.Logger) *http.Server {
 	return &http.Server{
 		Addr:              fmt.Sprintf(":%v", cfg.Port),
-		Handler:           newMux(cfg, dbConn),
+		Handler:           loggingAccess(logger)(newMux(cfg, dbConn)),
 		ReadHeaderTimeout: time.Duration(cfg.ReadHeaderTimeout) * time.Second,
 	}
 }

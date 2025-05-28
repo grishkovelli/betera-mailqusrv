@@ -74,7 +74,7 @@ func (p *Pool) processEmails(ctx context.Context) {
 func (p *Pool) sendAndUpdateEmails(ctx context.Context, emails []entities.Email) {
 	for status, ids := range sendEmails(emails, p.logger) {
 		if err := p.repo.BatchUpdateStatus(ctx, ids, status); err != nil {
-			p.logger.ErrorContext(ctx, "failed to update status", "error", err)
+			p.logger.ErrorContext(ctx, "update status", "error", err)
 		}
 	}
 }
@@ -87,7 +87,7 @@ func (p *Pool) selectAndMarkEmails(ctx context.Context) ([]entities.Email, error
 		var err error
 		emails, err = p.repo.LockPendingFailed(ctx, p.conf.BatchSize)
 		if err != nil {
-			return fmt.Errorf("failed to get pending/failed emails: %w", err)
+			return fmt.Errorf("get pending/failed emails: %w", err)
 		}
 		if len(emails) == 0 {
 			return nil
@@ -99,7 +99,7 @@ func (p *Pool) selectAndMarkEmails(ctx context.Context) ([]entities.Email, error
 		}
 
 		if err = p.repo.BatchUpdateStatus(ctx, ids, entities.Processing); err != nil {
-			return fmt.Errorf("failed to update status to processing: %w", err)
+			return fmt.Errorf("update status to processing: %w", err)
 		}
 
 		return nil
@@ -119,7 +119,7 @@ func (p *Pool) processStuckEmails(ctx context.Context) {
 			return
 		case <-tkr.C:
 			if err := p.repo.MarkStuckEmailsAsPending(ctx, p.conf.StuckCheckInterval); err != nil {
-				p.logger.InfoContext(ctx, "failed to update stuck emails", "error", err)
+				p.logger.InfoContext(ctx, "update stuck emails", "error", err)
 			}
 		}
 	}
